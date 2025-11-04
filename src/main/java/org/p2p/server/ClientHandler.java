@@ -18,7 +18,6 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         String peerHost = socket.getInetAddress().getHostAddress();
-        String method = null, literal = null, rfcNumber = null, version = null;
 
         try (
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -36,119 +35,122 @@ public class ClientHandler implements Runnable {
                     continue;
                 }
 
-                if (first_tokens.hasMoreTokens()) {
-                    method = first_tokens.nextToken();
+                String method = first_tokens.nextToken();
 
-                    switch (method) {
-                        case "ADD":
-                            if(!first_tokens.hasMoreTokens()) {
-                                sendError(out, "400 Bad Request: Wrong Input");
-                                break;
-                            }
-                            literal = first_tokens.nextToken();
-                            ;
-                            if (!literal.equals("RFC")) {
-                                sendError(out, "400 Bad Request: missing RFC keyword");
-                                break;
-                            }
-
-                            if(!first_tokens.hasMoreTokens()) {
-                                sendError(out, "400 Bad Request: missing correct rfcNumber");
-                                break;
-                            }
-                            rfcNumber = first_tokens.nextToken();
-
-                            if(!first_tokens.hasMoreTokens()) {
-                                sendError(out, "400 Bad Request: missing correct version");
-                                break;
-                            }
-                            version = first_tokens.nextToken();
-
-                            if (!version.equals("P2P-CI/1.0")) {
-                                sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
-                                break;
-                            }
-
-                            addNew(in, out, literal, rfcNumber, version);
-                            break;
-
-                        case "LOOKUP":
-                            if(!first_tokens.hasMoreTokens()) {
-                                sendError(out, "400 Bad Request: Wrong Input");
-                                break;
-                            }
-                            literal = first_tokens.nextToken();
-                            ;
-                            if (!literal.equals("RFC")) {
-                                sendError(out, "400 Bad Request: missing RFC keyword");
-                                break;
-                            }
-
-                            if(!first_tokens.hasMoreTokens()) {
-                                sendError(out, "400 Bad Request: missing correct rfcNumber");
-                                break;
-                            }
-                            rfcNumber = first_tokens.nextToken();
-
-                            if(!first_tokens.hasMoreTokens()) {
-                                sendError(out, "400 Bad Request: missing correct version");
-                                break;
-                            }
-                            version = first_tokens.nextToken();
-
-                            if (!version.equals("P2P-CI/1.0")) {
-                                sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
-                                break;
-                            }
-
-                            lookUp(in, out, literal, rfcNumber, version);
-                            break;
-
-                        case "LIST":
-                            if(!first_tokens.hasMoreTokens()) {
-                                sendError(out, "400 Bad Request: Wrong Input");
-                                break;
-                            }
-                            literal = first_tokens.nextToken();
-
-                            if (!literal.equals("ALL")) {
-                                sendError(out, "400 Bad Request: missing RFC keyword");
-                                break;
-                            }
-
-                            if(!first_tokens.hasMoreTokens()) {
-                                sendError(out, "400 Bad Request: missing correct version");
-                                break;
-                            }
-                            version = first_tokens.nextToken();
-
-                            if (!version.equals("P2P-CI/1.0")) {
-                                sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
-                                break;
-                            }
-
-                            listAll(in, out, literal, version);
-
-                            break;
-                        default: {
-                            sendError(out, "400 Bad Request: unknown method");
+                switch (method) {
+                    case "ADD": {
+                        if(!first_tokens.hasMoreTokens()) {
+                            // sendError(out, "400 Bad Request: Wrong Input");
+                            sendBadRequest(out);
                             break;
                         }
+                        String literal = first_tokens.nextToken();
+                    
+                        if (!literal.equals("RFC")) {
+                            // sendError(out, "400 Bad Request: missing RFC keyword");
+                            sendBadRequest(out);
+                            break;
+                        }
+
+                        if(!first_tokens.hasMoreTokens()) {
+                            // sendError(out, "400 Bad Request: missing correct rfcNumber");
+                            sendBadRequest(out);
+                            break;
+                        }
+                        String rfcNumber = first_tokens.nextToken();
+
+                        if(!first_tokens.hasMoreTokens()) {
+                            // sendError(out, "400 Bad Request: missing correct version");
+                            sendBadRequest(out);
+                            break;
+                        }
+                        String version = first_tokens.nextToken();
+
+                        if (!version.equals("P2P-CI/1.0")) {
+                            // sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
+                            sendVersionNotSupported(out, version);
+                            break;
+                        }
+
+                        handleAdd(in, out, literal, rfcNumber, version, peerHost);
+                        break;
+                    }
+
+                    case "LOOKUP": {
+                        if(!first_tokens.hasMoreTokens()) {
+                            // sendError(out, "400 Bad Request: Wrong Input");
+                            sendBadRequest(out);
+                            break;
+                        }
+                        String literal = first_tokens.nextToken();
+                        
+                        if (!literal.equals("RFC")) {
+                            // sendError(out, "400 Bad Request: missing RFC keyword");
+                            sendBadRequest(out);
+                            break;
+                        }
+
+                        if(!first_tokens.hasMoreTokens()) {
+                            // sendError(out, "400 Bad Request: missing correct rfcNumber");
+                            sendBadRequest(out);
+                            break;
+                        }
+                        String rfcNumber = first_tokens.nextToken();
+
+                        if(!first_tokens.hasMoreTokens()) {
+                            // sendError(out, "400 Bad Request: missing correct version");
+                            sendBadRequest(out);
+                            break;
+                        }
+                        String version = first_tokens.nextToken();
+
+                        if (!version.equals("P2P-CI/1.0")) {
+                            // sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
+                            sendVersionNotSupported(out, version);
+                            break;
+                        }
+
+                        handleLookUp(in, out, literal, rfcNumber, version);
+                        break;
+                    }
+                    case "LIST": {
+                        if(!first_tokens.hasMoreTokens()) {
+                            // sendError(out, "400 Bad Request: Wrong Input");
+                            sendBadRequest(out);
+                            break;
+                        }
+                        String literal = first_tokens.nextToken();
+
+                        if (!literal.equals("ALL")) {
+                            // sendError(out, "400 Bad Request: missing RFC keyword");
+                            sendBadRequest(out);
+                            break;
+                        }
+
+                        if(!first_tokens.hasMoreTokens()) {
+                            // sendError(out, "400 Bad Request: missing correct version");
+                            sendBadRequest(out);
+                            break;
+                        }
+                        String version = first_tokens.nextToken();
+
+                        if (!version.equals("P2P-CI/1.0")) {
+                            // sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
+                            sendVersionNotSupported(out, version);
+                            break;
+                        }
+
+                        handleListAll(in, out, literal, version);
+
+                        break;
+                    }
+                    default: {
+                        // sendError(out, "400 Bad Request: unknown method");
+                        sendBadRequest(out);
+                        break;
                     }
                 }
             }
-
-
-            out.write("P2P-CI/1.0 200 OK\r\n");
-            out.write("This is a placeholder response from server.\r\n");
-            out.write("\r\n");
-            out.flush();
-
-            // Later:
-            // 1. parse full request (method, headers)
-            // 2. handle ADD / LOOKUP / LIST ALL
-            // 3. update peerRegistry, rfcIndex
-            // 4. send proper formatted response (including RFC list)
 
         } catch (IOException e) {
             System.out.println("Peer " + peerHost + " disconnected: " + e.getMessage());
@@ -159,125 +161,194 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    public void addNew(BufferedReader in, BufferedWriter out, String literal, String rfcNumber, String version) throws IOException {
+    public void handleAdd(BufferedReader in, BufferedWriter out, String literal, String rfcNumber, String version, String peerHost) throws IOException {
         String secondline = in.readLine();
-        StringTokenizer second_tokens = new StringTokenizer(secondline, " ");
-        String host = null, port = null, title = null;
-
-        int i = 2;
-        while(i-- >= 1){
-            if(!second_tokens.hasMoreTokens()) {
-                sendError(out, "400 Bad Request: missing correct version");
-                break;
-            }
-
-            second_tokens.nextToken();
+        if(secondline == null) {
+            sendBadRequest(out);
+            return;
         }
-        host = second_tokens.nextToken();
+
+        StringTokenizer second_tokens = new StringTokenizer(secondline, " ");
+        if(!second_tokens.hasMoreTokens() || !second_tokens.nextToken().equals("Host:")) {
+            sendBadRequest(out);
+            return;
+        }
+
+        if(!second_tokens.hasMoreTokens()) {
+            sendBadRequest(out);
+            return;
+        }
+        String host = second_tokens.nextToken();
 
         String thirdline = in.readLine();
-        StringTokenizer third_tokens = new StringTokenizer(thirdline, " ");
-
-        i = 2;
-        while(i-- >= 1){
-            if(!third_tokens.hasMoreTokens()) {
-                sendError(out, "400 Bad Request: missing correct version");
-                break;
-            }
-
-            third_tokens.nextToken();
+        if(thirdline == null) {
+            sendBadRequest(out);
+            return;
         }
-        port = third_tokens.nextToken();
+
+        StringTokenizer third_tokens = new StringTokenizer(thirdline, " ");
+        if(!third_tokens.hasMoreTokens() || !third_tokens.nextToken().equals("Port:")) {
+            sendBadRequest(out);
+            return;
+        }
+
+        if(!third_tokens.hasMoreTokens()) {
+            sendBadRequest(out);
+            return;
+        }
+        String port = third_tokens.nextToken();
 
         String fourthLine = in.readLine();
-        StringTokenizer fourth_tokens = new StringTokenizer(fourthLine, " ");
-
-        i = 2;
-        while(i-- >= 1){
-            if(!fourth_tokens.hasMoreTokens()) {
-                sendError(out, "400 Bad Request: missing correct version");
-                break;
-            }
-
-            fourth_tokens.nextToken();
+        if(fourthLine == null) {
+            sendBadRequest(out);
+            return;
         }
-        title = fourth_tokens.nextToken();
+
+        if (!fourthLine.startsWith("Title:")) {
+            sendBadRequest(out);
+            return;
+        }
+
+        String titleHeaderVal = null;
+        int firstSpace = fourthLine.indexOf(' ');
+        if (firstSpace == -1 || firstSpace >= fourthLine.length() - 1) {
+            sendBadRequest(out);
+            return;
+        } 
+        else {
+            titleHeaderVal = fourthLine.substring(firstSpace + 1);
+        }
 
         String fifthLine = in.readLine();
-        if(!fifthLine.equals("")){
-            sendError(out, literal + " 400 Bad Request");
+        if(fifthLine == null || !fifthLine.equals("")){
+            // sendError(out, literal + " 400 Bad Request");
+            sendBadRequest(out);
         }
+        return;
     }
 
-    public void lookUp(BufferedReader in, BufferedWriter out, String literal, String rfcNumber, String version) throws IOException{
+    public void handleLookUp(BufferedReader in, BufferedWriter out, String literal, String rfcNumber, String version) throws IOException {
         String secondline = in.readLine();
-        StringTokenizer second_tokens = new StringTokenizer(secondline, " ");
-        String host = null, port = null, title = null;
-
-        int i = 2;
-        while(i-- >= 1){
-            if(!second_tokens.hasMoreTokens()) {
-                sendError(out, "400 Bad Request: missing correct version");
-                break;
-            }
-
-            second_tokens.nextToken();
+        if(secondline == null) {
+            sendBadRequest(out);
+            return;
         }
-        host = second_tokens.nextToken();
+
+        StringTokenizer second_tokens = new StringTokenizer(secondline, " ");
+        if(!second_tokens.hasMoreTokens() || !second_tokens.nextToken().equals("Host:")) {
+            sendBadRequest(out);
+            return;
+        }
+
+        if(!second_tokens.hasMoreTokens()) {
+            sendBadRequest(out);
+            return;
+        }
+        String host = second_tokens.nextToken();
 
         String thirdline = in.readLine();
-        StringTokenizer third_tokens = new StringTokenizer(thirdline, " ");
-
-        i = 2;
-        while(i-- >= 1){
-            if(!third_tokens.hasMoreTokens()) {
-                sendError(out, "400 Bad Request: missing correct version");
-                break;
-            }
-
-            third_tokens.nextToken();
+        if(thirdline == null) {
+            sendBadRequest(out);
+            return;
         }
-        port = third_tokens.nextToken();
+
+        StringTokenizer third_tokens = new StringTokenizer(thirdline, " ");
+        if(!third_tokens.hasMoreTokens() || !third_tokens.nextToken().equals("Port:")) {
+            sendBadRequest(out);
+            return;
+        }
+
+        if(!third_tokens.hasMoreTokens()) {
+            sendBadRequest(out);
+            return;
+        }
+        String port = third_tokens.nextToken();
 
         String fourthLine = in.readLine();
-        if(!fourthLine.equals("")){
-            sendError(out, literal + " 400 Bad Request");
+        if(fourthLine == null) {
+            sendBadRequest(out);
+            return;
         }
+
+        if (!fourthLine.startsWith("Title:")) {
+            sendBadRequest(out);
+            return;
+        }
+        
+        String titleHeaderVal = null;
+        int firstSpace = fourthLine.indexOf(' ');
+        if (firstSpace == -1 || firstSpace >= fourthLine.length() - 1) {
+            sendBadRequest(out);
+            return;
+        } 
+        else {
+            titleHeaderVal = fourthLine.substring(firstSpace + 1);
+        }
+
+        String fifthLine = in.readLine();
+        if(fifthLine == null || !fifthLine.equals("")){
+            // sendError(out, literal + " 400 Bad Request");
+            sendBadRequest(out);
+            return;
+        }
+        return;
     }
 
-    public void listAll(BufferedReader in, BufferedWriter out, String literal, String version) throws IOException{
+    public void handleListAll(BufferedReader in, BufferedWriter out, String literal, String version) throws IOException {
         String secondline = in.readLine();
-        StringTokenizer second_tokens = new StringTokenizer(secondline, " ");
-        String host = null, port = null, title = null;
-
-        int i = 2;
-        while(i-- >= 1){
-            if(!second_tokens.hasMoreTokens()) {
-                sendError(out, "400 Bad Request: missing correct version");
-                break;
-            }
-
-            second_tokens.nextToken();
+        if(secondline == null) {
+            sendBadRequest(out);
+            return;
         }
-        host = second_tokens.nextToken();
+
+        StringTokenizer second_tokens = new StringTokenizer(secondline, " ");
+        if(!second_tokens.hasMoreTokens() || !second_tokens.nextToken().equals("Host:")) {
+            sendBadRequest(out);
+            return;
+        }
+
+        if(!second_tokens.hasMoreTokens()) {
+            sendBadRequest(out);
+            return;
+        }
+        String host = second_tokens.nextToken();
 
         String thirdline = in.readLine();
-        StringTokenizer third_tokens = new StringTokenizer(thirdline, " ");
-
-        i = 2;
-        while(i-- >= 1){
-            if(!third_tokens.hasMoreTokens()) {
-                sendError(out, "400 Bad Request: missing correct version");
-                break;
-            }
-
-            third_tokens.nextToken();
+        if(thirdline == null) {
+            sendBadRequest(out);
+            return;
         }
-        port = third_tokens.nextToken();
+
+        StringTokenizer third_tokens = new StringTokenizer(thirdline, " ");
+        if(!third_tokens.hasMoreTokens() || !third_tokens.nextToken().equals("Port:")) {
+            sendBadRequest(out);
+            return;
+        }
+
+        if(!third_tokens.hasMoreTokens()) {
+            sendBadRequest(out);
+            return;
+        }
+        String port = third_tokens.nextToken();
 
         String fourthLine = in.readLine();
-        if(!fourthLine.equals("")){
-            sendError(out, literal + " 400 Bad Request");
+        if(fourthLine == null || !fourthLine.equals("")){
+            // sendError(out, literal + " 400 Bad Request");
+            sendBadRequest(out);
+            return;
         }
+        return;
+    }
+
+    private void sendBadRequest(BufferedWriter out) throws IOException {
+        out.write("P2P-CI/1.0 400 Bad Request\r\n");
+        out.write("\r\n");
+        out.flush();
+    }
+
+    private void sendVersionNotSupported(BufferedWriter out, String version) throws IOException {
+        out.write("P2P-CI/1.0 505 P2P-CI Version Not Supported\r\n");
+        out.write("\r\n");
+        out.flush();
     }
 }
