@@ -3,6 +3,9 @@ package org.p2p.server;
 import java.io.*;
 import java.net.Socket;
 import java.util.StringTokenizer;
+import java.util.List;
+
+import org.p2p.common.RfcRecord;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -40,34 +43,29 @@ public class ClientHandler implements Runnable {
                 switch (method) {
                     case "ADD": {
                         if(!first_tokens.hasMoreTokens()) {
-                            // sendError(out, "400 Bad Request: Wrong Input");
                             sendBadRequest(out);
                             break;
                         }
                         String literal = first_tokens.nextToken();
                     
                         if (!literal.equals("RFC")) {
-                            // sendError(out, "400 Bad Request: missing RFC keyword");
                             sendBadRequest(out);
                             break;
                         }
 
                         if(!first_tokens.hasMoreTokens()) {
-                            // sendError(out, "400 Bad Request: missing correct rfcNumber");
                             sendBadRequest(out);
                             break;
                         }
                         String rfcNumber = first_tokens.nextToken();
 
                         if(!first_tokens.hasMoreTokens()) {
-                            // sendError(out, "400 Bad Request: missing correct version");
                             sendBadRequest(out);
                             break;
                         }
                         String version = first_tokens.nextToken();
 
                         if (!version.equals("P2P-CI/1.0")) {
-                            // sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
                             sendVersionNotSupported(out, version);
                             break;
                         }
@@ -78,34 +76,29 @@ public class ClientHandler implements Runnable {
 
                     case "LOOKUP": {
                         if(!first_tokens.hasMoreTokens()) {
-                            // sendError(out, "400 Bad Request: Wrong Input");
                             sendBadRequest(out);
                             break;
                         }
                         String literal = first_tokens.nextToken();
                         
                         if (!literal.equals("RFC")) {
-                            // sendError(out, "400 Bad Request: missing RFC keyword");
                             sendBadRequest(out);
                             break;
                         }
 
                         if(!first_tokens.hasMoreTokens()) {
-                            // sendError(out, "400 Bad Request: missing correct rfcNumber");
                             sendBadRequest(out);
                             break;
                         }
                         String rfcNumber = first_tokens.nextToken();
 
                         if(!first_tokens.hasMoreTokens()) {
-                            // sendError(out, "400 Bad Request: missing correct version");
                             sendBadRequest(out);
                             break;
                         }
                         String version = first_tokens.nextToken();
 
                         if (!version.equals("P2P-CI/1.0")) {
-                            // sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
                             sendVersionNotSupported(out, version);
                             break;
                         }
@@ -115,27 +108,23 @@ public class ClientHandler implements Runnable {
                     }
                     case "LIST": {
                         if(!first_tokens.hasMoreTokens()) {
-                            // sendError(out, "400 Bad Request: Wrong Input");
                             sendBadRequest(out);
                             break;
                         }
                         String literal = first_tokens.nextToken();
 
                         if (!literal.equals("ALL")) {
-                            // sendError(out, "400 Bad Request: missing RFC keyword");
                             sendBadRequest(out);
                             break;
                         }
 
                         if(!first_tokens.hasMoreTokens()) {
-                            // sendError(out, "400 Bad Request: missing correct version");
                             sendBadRequest(out);
                             break;
                         }
                         String version = first_tokens.nextToken();
 
                         if (!version.equals("P2P-CI/1.0")) {
-                            // sendError(out, "P2P-CI/1.0 505 " + version + " Version Not Supported");
                             sendVersionNotSupported(out, version);
                             break;
                         }
@@ -145,7 +134,6 @@ public class ClientHandler implements Runnable {
                         break;
                     }
                     default: {
-                        // sendError(out, "400 Bad Request: unknown method");
                         sendBadRequest(out);
                         break;
                     }
@@ -154,8 +142,6 @@ public class ClientHandler implements Runnable {
 
         } catch (IOException e) {
             System.out.println("Peer " + peerHost + " disconnected: " + e.getMessage());
-        } finally {
-            // cleanup this peer's RFCs and entry when it disconnects
             peerRegistry.removePeer(peerHost);
             rfcIndex.removeHost(peerHost);
         }
@@ -221,9 +207,27 @@ public class ClientHandler implements Runnable {
 
         String fifthLine = in.readLine();
         if(fifthLine == null || !fifthLine.equals("")){
-            // sendError(out, literal + " 400 Bad Request");
             sendBadRequest(out);
+            return;
         }
+
+        int rfcNumInteger = -1;
+        int portInteger = -1;
+        try{
+            rfcNumInteger = Integer.parseInt(rfcNumber);
+            portInteger = Integer.parseInt(port);
+        } catch (NumberFormatException e) {
+            sendBadRequest(out);
+            return;
+        }
+
+        peerRegistry.addPeer(host, portInteger);
+        rfcIndex.addRfc(rfcNumInteger, titleHeaderVal, host, portInteger);
+        
+        out.write("P2P-CI/1.0 200 OK\r\n");
+        out.write("RFC " + rfcNumInteger + " " + titleHeaderVal + " " + host + " " + portInteger + "\r\n");
+        out.write("\r\n");
+        out.flush();   
         return;
     }
 
@@ -287,11 +291,32 @@ public class ClientHandler implements Runnable {
 
         String fifthLine = in.readLine();
         if(fifthLine == null || !fifthLine.equals("")){
-            // sendError(out, literal + " 400 Bad Request");
             sendBadRequest(out);
             return;
         }
-        return;
+
+        int rfcNumInteger = -1;
+        int portInteger = -1;
+        try{
+            rfcNumInteger = Integer.parseInt(rfcNumber);
+            portInteger = Integer.parseInt(port);
+        } catch (NumberFormatException e) {
+            sendBadRequest(out);
+            return;
+        }
+
+        List<RfcRecord> rfcRecords = rfcIndex.lookup(rfcNumInteger);
+        if(rfcRecords == null || rfcRecords.isEmpty()) {
+            sendNotFound(out);
+            return;
+        }
+        
+        out.write("P2P-CI/1.0 200 OK\r\n");
+        for (RfcRecord rec : rfcRecords) {
+            out.write("RFC " + rec.getRfcNumber() + " " + rec.getTitle() + " " + rec.getHost() + " " + rec.getUploadPort() + "\r\n");
+        }
+        out.write("\r\n");
+        out.flush();
     }
 
     public void handleListAll(BufferedReader in, BufferedWriter out, String literal, String version) throws IOException {
@@ -333,11 +358,27 @@ public class ClientHandler implements Runnable {
 
         String fourthLine = in.readLine();
         if(fourthLine == null || !fourthLine.equals("")){
-            // sendError(out, literal + " 400 Bad Request");
             sendBadRequest(out);
             return;
         }
-        return;
+
+        int portInteger = -1;
+        try{
+            portInteger = Integer.parseInt(port);
+        } catch (NumberFormatException e) {
+            sendBadRequest(out);
+            return;
+        }
+
+        List<RfcRecord> rfcRecords = rfcIndex.listAll();
+        out.write("P2P-CI/1.0 200 OK\r\n");
+        if (rfcRecords != null && !rfcRecords.isEmpty()) {
+            for (RfcRecord rec : rfcRecords) {
+                out.write("RFC " + rec.getRfcNumber() + " " + rec.getTitle() + " " + rec.getHost() + " " + rec.getUploadPort() + "\r\n");
+            }
+        }
+        out.write("\r\n");
+        out.flush();
     }
 
     private void sendBadRequest(BufferedWriter out) throws IOException {
@@ -348,6 +389,12 @@ public class ClientHandler implements Runnable {
 
     private void sendVersionNotSupported(BufferedWriter out, String version) throws IOException {
         out.write("P2P-CI/1.0 505 P2P-CI Version Not Supported\r\n");
+        out.write("\r\n");
+        out.flush();
+    }
+
+    private void sendNotFound(BufferedWriter out) throws IOException {
+        out.write("P2P-CI/1.0 404 Not Found\r\n");
         out.write("\r\n");
         out.flush();
     }
