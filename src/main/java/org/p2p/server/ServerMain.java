@@ -22,7 +22,6 @@ public class ServerMain {
                 Socket peerSocket = serverSocket.accept();
                 System.out.println("New peer connected: " + peerSocket.getRemoteSocketAddress());
 
-                // hand off to worker
                 ClientHandler handler = new ClientHandler(peerSocket, peerRegistry, rfcIndex);
                 pool.submit(handler);
             }
