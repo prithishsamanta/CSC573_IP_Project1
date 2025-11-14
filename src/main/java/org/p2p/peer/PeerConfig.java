@@ -2,9 +2,6 @@ package org.p2p.peer;
 
 import java.io.File;
 
-/**
- * Simple configuration holder for a peer instance.
- */
 public class PeerConfig {
 
     private final String serverHost;
@@ -41,14 +38,7 @@ public class PeerConfig {
         return osName;
     }
 
-    /**
-     * Very simple CLI parser:
-     *   --serverHost <host>   (default: localhost)
-     *   --serverPort <port>   (default: 7734)
-     *   --uploadPort <port>   (default: 0 -> choose random free port)
-     *   --rfcDir <path>       (default: ./rfc)
-     *   --os "<os string>"    (default: System.getProperty("os.name"))
-     */
+    
     public static PeerConfig fromArgs(String[] args) {
         String serverHost = "localhost";
         int serverPort = 7734;
@@ -79,7 +69,6 @@ public class PeerConfig {
         }
 
         if (!rfcDir.exists()) {
-            // You can also choose to create the directory automatically
             rfcDir.mkdirs();
         }
 

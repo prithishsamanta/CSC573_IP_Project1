@@ -312,6 +312,7 @@ public class ClientHandler implements Runnable {
         }
         
         out.write("P2P-CI/1.0 200 OK\r\n");
+        out.write("\r\n");
         for (RfcRecord rec : rfcRecords) {
             out.write("RFC " + rec.getRfcNumber() + " " + rec.getTitle() + " " + rec.getHost() + " " + rec.getUploadPort() + "\r\n");
         }
@@ -372,6 +373,7 @@ public class ClientHandler implements Runnable {
 
         List<RfcRecord> rfcRecords = rfcIndex.listAll();
         out.write("P2P-CI/1.0 200 OK\r\n");
+        out.write("\r\n");
         if (rfcRecords != null && !rfcRecords.isEmpty()) {
             for (RfcRecord rec : rfcRecords) {
                 out.write("RFC " + rec.getRfcNumber() + " " + rec.getTitle() + " " + rec.getHost() + " " + rec.getUploadPort() + "\r\n");

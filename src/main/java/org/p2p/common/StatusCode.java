@@ -6,6 +6,6 @@ public final class StatusCode {
     public static final String NOT_FOUND_404 = "P2P-CI/1.0 404 Not Found";
     public static final String VERSION_NOT_SUPPORTED_505 = "P2P-CI/1.0 505 P2P-CI Version Not Supported";
 
-    private StatusCode() {} // prevent instantiation
+    private StatusCode() {} 
 }
 
