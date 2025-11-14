@@ -7,25 +7,10 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
-/**
- * P2P client that connects to another peer's UploadServer
- * and downloads an RFC via GET.
- */
 public class P2PClient {
-
-    /**
-     * Download an RFC from a remote peer.
-     *
-     * @param peer       where to connect (host + uploadPort)
-     * @param rfcNumber  which RFC to request
-     * @param targetDir  directory to save the downloaded RFC file
-     * @param osName     value to send in the "OS" header
-     * @return true if download succeeded with 200 OK, false otherwise
-     */
     public boolean downloadRfc(PeerInfo peer, int rfcNumber, File targetDir, String osName) {
         try (Socket socket = new Socket(peer.getHost(), peer.getUploadPort())) {
 
-            // --- Send GET request ---
             BufferedWriter out = new BufferedWriter(
                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
 
@@ -35,9 +20,10 @@ public class P2PClient {
             out.write("\r\n");
             out.flush();
 
-            // --- Read status line + headers ---
+            InputStream rawIn = socket.getInputStream();
+            BufferedInputStream bis = new BufferedInputStream(rawIn);
             BufferedReader in = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                    new InputStreamReader(bis, StandardCharsets.UTF_8));
 
             String statusLine = in.readLine();
             if (statusLine == null) {
@@ -58,7 +44,6 @@ public class P2PClient {
                 }
             }
 
-            // Handle non-200 responses using StatusCode constants
             if (!statusLine.startsWith(StatusCode.OK_200)) {
                 if (statusLine.startsWith(StatusCode.NOT_FOUND_404)) {
                     System.err.println("[P2PClient] RFC " + rfcNumber + " not found on peer");
@@ -77,10 +62,8 @@ public class P2PClient {
                 return false;
             }
 
-            // --- Read body as bytes (exactly Content-Length) ---
-            byte[] body = readBytes(socket.getInputStream(), contentLength);
+            byte[] body = readBytes(bis, contentLength);
 
-            // --- Save to file: rfc<rfcNumber>.txt ---
             if (!targetDir.exists()) {
                 targetDir.mkdirs();
             }

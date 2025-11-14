@@ -1,8 +1,8 @@
 # P2P-CI: Peer-to-Peer with Centralized Index
 
 ## Team Members
-- **[Prithish Samanta]** - Unity ID: `psamant2`
-- **[Nayan Taori]** - Unity ID: `ntaori`
+- **Prithish Samanta** - Unity ID: `psamant2`
+- **Nayan Taori** - Unity ID: `ntaori`
 
 ## System Overview
 

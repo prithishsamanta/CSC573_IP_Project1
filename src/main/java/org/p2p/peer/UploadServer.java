@@ -9,10 +9,6 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
-/**
- * Listens for incoming P2P connections from other peers
- * and serves RFC files using the GET method.
- */
 public class UploadServer implements Runnable {
 
     private final int requestedPort;
@@ -32,9 +28,6 @@ public class UploadServer implements Runnable {
         return boundPort;
     }
 
-    /**
-     * Block until the server has successfully bound to a port.
-     */
     public int waitForBoundPort() {
         while (boundPort == -1) {
             try {
@@ -67,13 +60,9 @@ public class UploadServer implements Runnable {
 
     public void shutdown() {
         running = false;
-        // serverSocket will close when run() exits; you can enhance this later
     }
 }
 
-/**
- * Handles a single incoming P2P connection (i.e., one GET request).
- */
 class UploadWorker implements Runnable {
 
     private final Socket socket;
@@ -94,14 +83,12 @@ class UploadWorker implements Runnable {
              BufferedWriter out = new BufferedWriter(
                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
 
-            // --- Parse request line ---
             String requestLine = in.readLine();
             if (requestLine == null || requestLine.isEmpty()) {
                 sendSimpleResponse(out, 400, "Bad Request");
                 return;
             }
 
-            // Expected: GET RFC <number> P2P-CI/1.0
             String[] parts = requestLine.trim().split("\\s+");
             if (parts.length != 4 || !"GET".equals(parts[0]) || !"RFC".equals(parts[1])) {
                 sendSimpleResponse(out, 400, "Bad Request");
@@ -116,20 +103,16 @@ class UploadWorker implements Runnable {
                 return;
             }
 
-            // --- Read headers until blank line (we don't strictly need them yet) ---
             String line;
             while ((line = in.readLine()) != null && !line.isEmpty()) {
-                // You can parse Host / OS here if you want to validate
             }
 
-            // --- Locate RFC file ---
             File rfcFile = new File(rfcDirectory, "rfc" + rfcNumber + ".txt");
             if (!rfcFile.exists() || !rfcFile.isFile()) {
                 sendSimpleResponse(out, 404, "Not Found");
                 return;
             }
 
-            // --- Send 200 OK with headers + body ---
             byte[] fileBytes = readAllBytes(rfcFile);
 
             String now = httpDate(new Date());
@@ -141,10 +124,9 @@ class UploadWorker implements Runnable {
             out.write("Last-Modified: " + lastModified + "\r\n");
             out.write("Content-Length: " + fileBytes.length + "\r\n");
             out.write("Content-Type: text/plain\r\n");
-            out.write("\r\n"); // blank line ends headers
-            out.flush();        // ⬅ push headers out now
+            out.write("\r\n"); 
+            out.flush();
 
-            // Now send file body as bytes
             OutputStream rawOut = socket.getOutputStream();
             rawOut.write(fileBytes);
             rawOut.flush();
@@ -180,9 +162,6 @@ class UploadWorker implements Runnable {
         }
     }
 
-    /**
-     * Format date as RFC-1123 (HTTP style).
-     */
     private static String httpDate(Date date) {
         SimpleDateFormat fmt =
                 new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
