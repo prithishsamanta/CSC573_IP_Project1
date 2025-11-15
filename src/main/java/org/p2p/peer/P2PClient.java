@@ -63,7 +63,10 @@ public class P2PClient {
             if (!targetDir.exists()) {
                 targetDir.mkdirs();
             }
-            File outFile = new File(targetDir, "rfc" + rfcNumber + ".txt");
+            
+            // Extract title from file content to create filename
+            String filename = generateFilenameFromContent(body, rfcNumber);
+            File outFile = new File(targetDir, filename);
             try (FileOutputStream fos = new FileOutputStream(outFile)) {
                 fos.write(body);
             }
@@ -113,5 +116,28 @@ public class P2PClient {
             offset += read;
         }
         return data;
+    }
+    
+    private static String generateFilenameFromContent(byte[] content, int rfcNumber) {
+        try {
+            // Read first line to extract title
+            String contentStr = new String(content, StandardCharsets.UTF_8);
+            String[] lines = contentStr.split("\r?\n");
+            if (lines.length > 0) {
+                String firstLine = lines[0];
+                // First line format: "RFC <number> - <title>"
+                if (firstLine.startsWith("RFC " + rfcNumber + " - ")) {
+                    String title = firstLine.substring(("RFC " + rfcNumber + " - ").length());
+                    // Sanitize title for filename: replace spaces with underscores, remove special chars
+                    String sanitizedTitle = title.replaceAll("[^a-zA-Z0-9\\s]", "").replaceAll("\\s+", "_");
+                    // Make it unique by adding RFC number: <title>_rfc<number>.txt
+                    return sanitizedTitle + "_rfc" + rfcNumber + ".txt";
+                }
+            }
+        } catch (Exception e) {
+            // If parsing fails, fall back to default name
+        }
+        // Fallback: if we can't extract title, use default format
+        return "rfc" + rfcNumber + ".txt";
     }
 }
