@@ -11,6 +11,7 @@ public class ClientHandler implements Runnable {
     private final Socket socket;
     private final PeerRegistry peerRegistry;
     private final RfcIndex rfcIndex;
+    private String registeredHostname = null;
 
     public ClientHandler(Socket socket, PeerRegistry peerRegistry, RfcIndex rfcIndex) {
         this.socket = socket;
@@ -28,7 +29,9 @@ public class ClientHandler implements Runnable {
         ) {
             while(true) {
                 String firstline = in.readLine();
-                if (firstline == null) break;
+                if (firstline == null) {
+                    break;
+                }
                 System.out.println("Received from " + peerHost + ": " + firstline);
 
                 StringTokenizer first_tokens = new StringTokenizer(firstline, " ");
@@ -139,11 +142,21 @@ public class ClientHandler implements Runnable {
                     }
                 }
             }
+            
+            String hostToRemove = registeredHostname != null ? registeredHostname : peerHost;
+            System.out.println("Peer " + hostToRemove + " (IP: " + peerHost + ") disconnected gracefully");
+            if (registeredHostname != null) {
+                peerRegistry.removePeer(registeredHostname);
+                rfcIndex.removeHost(registeredHostname);
+            }
 
         } catch (IOException e) {
-            System.out.println("Peer " + peerHost + " disconnected: " + e.getMessage());
-            peerRegistry.removePeer(peerHost);
-            rfcIndex.removeHost(peerHost);
+            String hostToRemove = registeredHostname != null ? registeredHostname : peerHost;
+            System.out.println("Peer " + hostToRemove + " (IP: " + peerHost + ") disconnected with error: " + e.getMessage());
+            if (registeredHostname != null) {
+                peerRegistry.removePeer(registeredHostname);
+                rfcIndex.removeHost(registeredHostname);
+            }
         }
     }
 
@@ -221,6 +234,10 @@ public class ClientHandler implements Runnable {
             return;
         }
 
+        if (registeredHostname == null) {
+            registeredHostname = host;
+        }
+        
         peerRegistry.addPeer(host, portInteger);
         rfcIndex.addRfc(rfcNumInteger, titleHeaderVal, host, portInteger);
         

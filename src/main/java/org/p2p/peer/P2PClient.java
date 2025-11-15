@@ -20,12 +20,8 @@ public class P2PClient {
             out.write("\r\n");
             out.flush();
 
-            InputStream rawIn = socket.getInputStream();
-            BufferedInputStream bis = new BufferedInputStream(rawIn);
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(bis, StandardCharsets.UTF_8));
-
-            String statusLine = in.readLine();
+            InputStream inputStream = socket.getInputStream();
+            String statusLine = readLine(inputStream);
             if (statusLine == null) {
                 System.err.println("[P2PClient] No response from peer");
                 return false;
@@ -36,7 +32,7 @@ public class P2PClient {
             int contentLength = -1;
 
             String headerLine;
-            while ((headerLine = in.readLine()) != null && !headerLine.isEmpty()) {
+            while ((headerLine = readLine(inputStream)) != null && !headerLine.isEmpty()) {
                 System.out.println("[P2PClient] Header: " + headerLine);
                 if (headerLine.toLowerCase().startsWith("content-length:")) {
                     String value = headerLine.substring("content-length:".length()).trim();
@@ -62,7 +58,7 @@ public class P2PClient {
                 return false;
             }
 
-            byte[] body = readBytes(bis, contentLength);
+            byte[] body = readBytes(inputStream, contentLength);
 
             if (!targetDir.exists()) {
                 targetDir.mkdirs();
@@ -80,6 +76,30 @@ public class P2PClient {
             System.err.println("[P2PClient] I/O error: " + e.getMessage());
             return false;
         }
+    }
+
+    private static String readLine(InputStream in) throws IOException {
+        StringBuilder line = new StringBuilder();
+        int c;
+        while ((c = in.read()) != -1) {
+            if (c == '\r') {
+                int next = in.read();
+                if (next == '\n') {
+                    break;
+                } else if (next != -1) {
+                    line.append((char) c);
+                    line.append((char) next);
+                } else {
+                    line.append((char) c);
+                    break;
+                }
+            } else if (c == '\n') {
+                break;
+            } else {
+                line.append((char) c);
+            }
+        }
+        return line.length() > 0 || c != -1 ? line.toString() : null;
     }
 
     private static byte[] readBytes(InputStream in, int length) throws IOException {
