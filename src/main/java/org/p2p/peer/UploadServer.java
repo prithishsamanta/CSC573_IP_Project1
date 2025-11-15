@@ -107,10 +107,15 @@ class UploadWorker implements Runnable {
             while ((line = in.readLine()) != null && !line.isEmpty()) {
             }
 
+            // First try exact match: rfc<number>.txt
             File rfcFile = new File(rfcDirectory, "rfc" + rfcNumber + ".txt");
             if (!rfcFile.exists() || !rfcFile.isFile()) {
-                sendSimpleResponse(out, 404, "Not Found");
-                return;
+                // Search through all .txt files to find one that contains "RFC <number>"
+                rfcFile = findRfcFileByNumber(rfcDirectory, rfcNumber);
+                if (rfcFile == null) {
+                    sendSimpleResponse(out, 404, "Not Found");
+                    return;
+                }
             }
 
             byte[] fileBytes = readAllBytes(rfcFile);
@@ -140,6 +145,31 @@ class UploadWorker implements Runnable {
                 socket.close();
             } catch (IOException ignore) {}
         }
+    }
+
+    private File findRfcFileByNumber(File rfcDirectory, String rfcNumber) {
+        File[] txtFiles = rfcDirectory.listFiles((dir, name) -> 
+            name.toLowerCase().endsWith(".txt"));
+        
+        if (txtFiles == null) {
+            return null;
+        }
+        
+        String searchPattern = "RFC " + rfcNumber;
+        for (File file : txtFiles) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+                String firstLine = reader.readLine();
+                if (firstLine != null && firstLine.startsWith(searchPattern)) {
+                    return file;
+                }
+            } catch (IOException e) {
+                // Skip files that can't be read
+                continue;
+            }
+        }
+        
+        return null;
     }
 
     private void sendSimpleResponse(BufferedWriter out, int code, String phrase) throws IOException {

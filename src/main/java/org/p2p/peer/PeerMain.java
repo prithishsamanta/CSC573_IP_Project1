@@ -4,6 +4,8 @@ import org.p2p.common.PeerInfo;
 import org.p2p.common.RfcRecord;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
@@ -186,7 +188,24 @@ public class PeerMain {
                 return;
             }
             
+            // Create the RFC file in the local directory with title in filename
+            File rfcDir = config.getRfcDirectory();
+            // Sanitize title for filename: replace spaces with underscores, remove special chars
+            String sanitizedTitle = title.replaceAll("[^a-zA-Z0-9\\s]", "").replaceAll("\\s+", "_");
+            String filename = sanitizedTitle + ".txt";
+            File rfcFile = new File(rfcDir, filename);
+            
+            try (FileWriter writer = new FileWriter(rfcFile)) {
+                writer.write("RFC " + rfcNumber + " - " + title + "\n");
+                writer.write("This RFC file was created via ADD command.\n");
+            } catch (IOException e) {
+                System.err.println("Error creating RFC file: " + e.getMessage());
+                return;
+            }
+            
+            System.out.println("Created local file: " + rfcFile.getAbsolutePath());
             System.out.println("Adding RFC " + rfcNumber + " with title: " + title);
+            
             if (p2sClient.addRfc(rfcNumber, title)) {
                 System.out.println("Successfully registered RFC " + rfcNumber + " with server");
             } else {
@@ -229,8 +248,14 @@ public class PeerMain {
         } else {
             System.out.println("All RFCs in network (" + records.size() + " total):");
             for (RfcRecord record : records) {
-                System.out.println("  RFC " + record.getRfcNumber() + " " + record.getTitle() +
-                        " " + record.getHost() + " " + record.getUploadPort());
+                // Format: hostname port number_title
+                String title = record.getTitle();
+                // Remove "RFC " prefix from title if it exists to avoid duplication
+                if (title.startsWith("RFC ")) {
+                    title = title.substring(4);
+                }
+                System.out.println("  " + record.getHost() + " " + record.getUploadPort() + 
+                        " " + record.getRfcNumber() + "_" + title);
             }
         }
     }
