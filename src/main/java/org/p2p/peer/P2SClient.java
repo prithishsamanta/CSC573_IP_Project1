@@ -1,26 +1,21 @@
 package org.p2p.peer;
-
 import org.p2p.common.PeerInfo;
 import org.p2p.common.RfcRecord;
-
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-
 public class P2SClient {
     private final String serverHost;
     private final int serverPort;
     private final String peerHost;
     private final int uploadPort;
     private final String osName;
-    
     private Socket socket;
     private BufferedReader in;
     private BufferedWriter out;
     private volatile boolean connected = false;
-
     public P2SClient(String serverHost, int serverPort, String peerHost, int uploadPort, String osName) {
         this.serverHost = serverHost;
         this.serverPort = serverPort;
@@ -28,7 +23,6 @@ public class P2SClient {
         this.uploadPort = uploadPort;
         this.osName = osName;
     }
-
     public boolean connect() {
         try {
             socket = new Socket(serverHost, serverPort);
@@ -44,13 +38,11 @@ public class P2SClient {
             return false;
         }
     }
-
     public boolean addRfc(int rfcNumber, String title) {
         if (!connected || socket == null || socket.isClosed()) {
             System.err.println("[P2SClient] Not connected to server");
             return false;
         }
-
         try {
             out.write("ADD RFC " + rfcNumber + " P2P-CI/1.0\r\n");
             out.write("Host: " + peerHost + "\r\n");
@@ -58,22 +50,17 @@ public class P2SClient {
             out.write("Title: " + title + "\r\n");
             out.write("\r\n");
             out.flush();
-
             String statusLine = in.readLine();
             if (statusLine == null) {
                 System.err.println("[P2SClient] No response from server for ADD");
                 return false;
             }
-
             System.out.println("[P2SClient] ADD response: " + statusLine);
-
             String echoLine = in.readLine();
             if (echoLine != null && !echoLine.isEmpty()) {
                 System.out.println("[P2SClient] " + echoLine);
             }
-
             String blankLine = in.readLine();
-            
             if (statusLine.startsWith("P2P-CI/1.0 200")) {
                 return true;
             } else {
@@ -86,13 +73,11 @@ public class P2SClient {
             return false;
         }
     }
-
     public List<RfcRecord> lookupRfc(int rfcNumber) {
         if (!connected || socket == null || socket.isClosed()) {
             System.err.println("[P2SClient] Not connected to server");
             return new ArrayList<>();
         }
-
         try {
             out.write("LOOKUP RFC " + rfcNumber + " P2P-CI/1.0\r\n");
             out.write("Host: " + peerHost + "\r\n");
@@ -100,21 +85,15 @@ public class P2SClient {
             out.write("Title: RFC " + rfcNumber + "\r\n");
             out.write("\r\n");
             out.flush();
-
             String statusLine = in.readLine();
             if (statusLine == null) {
                 System.err.println("[P2SClient] No response from server for LOOKUP");
                 return new ArrayList<>();
             }
-
             System.out.println("[P2SClient] LOOKUP response: " + statusLine);
-
             List<RfcRecord> records = new ArrayList<>();
-
             if (statusLine.startsWith("P2P-CI/1.0 200")) {
-                // Read blank line after status
                 in.readLine();
-                
                 String line;
                 while ((line = in.readLine()) != null && !line.isEmpty()) {
                     String[] parts = line.trim().split("\\s+");
@@ -142,7 +121,6 @@ public class P2SClient {
                 in.readLine();
                 System.err.println("[P2SClient] LOOKUP failed: " + statusLine);
             }
-
             return records;
         } catch (IOException e) {
             System.err.println("[P2SClient] Error sending LOOKUP: " + e.getMessage());
@@ -150,34 +128,26 @@ public class P2SClient {
             return new ArrayList<>();
         }
     }
-
     public List<RfcRecord> listAll() {
         if (!connected || socket == null || socket.isClosed()) {
             System.err.println("[P2SClient] Not connected to server");
             return new ArrayList<>();
         }
-
         try {
             out.write("LIST ALL P2P-CI/1.0\r\n");
             out.write("Host: " + peerHost + "\r\n");
             out.write("Port: " + uploadPort + "\r\n");
             out.write("\r\n");
             out.flush();
-
             String statusLine = in.readLine();
             if (statusLine == null) {
                 System.err.println("[P2SClient] No response from server for LIST");
                 return new ArrayList<>();
             }
-
             System.out.println("[P2SClient] LIST response: " + statusLine);
-
             List<RfcRecord> records = new ArrayList<>();
-
             if (statusLine.startsWith("P2P-CI/1.0 200")) {
-                // Read blank line after status
                 in.readLine();
-                
                 String line;
                 while ((line = in.readLine()) != null && !line.isEmpty()) {
                     String[] parts = line.trim().split("\\s+");
@@ -202,7 +172,6 @@ public class P2SClient {
                 in.readLine();
                 System.err.println("[P2SClient] LIST failed: " + statusLine);
             }
-
             return records;
         } catch (IOException e) {
             System.err.println("[P2SClient] Error sending LIST: " + e.getMessage());
@@ -210,12 +179,45 @@ public class P2SClient {
             return new ArrayList<>();
         }
     }
-
+    public boolean exit(){
+        if (!connected || socket == null || socket.isClosed()) {
+            System.err.println("[P2SClient] Not connected to server");
+            return false;
+        }
+        try {
+            out.write("EXIT P2P-CI/1.0\r\n");
+            out.write("Host: " + peerHost + "\r\n");
+            out.write("Port: " + uploadPort + "\r\n");
+            out.write("\r\n");
+            out.flush();
+            String statusLine = in.readLine();
+            if (statusLine == null) {
+                System.err.println("[P2SClient] No response from server for EXIT");
+                return false;
+            }
+            System.out.println("[P2SClient] EXIT response: " + statusLine);
+            in.readLine();
+            if (statusLine.startsWith("P2P-CI/1.0 200")) {
+                connected = false;
+                socket.close();
+                return true;
+            } else {
+                System.err.println("[P2SClient] EXIT failed: " + statusLine);
+                return false;
+            }
+        } catch (IOException e) {
+            System.err.println("[P2SClient] Error sending EXIT: " + e.getMessage());
+            connected = false;
+            return false;
+        }
+    }
     public boolean isConnected() {
         return connected && socket != null && !socket.isClosed();
     }
-
     public void disconnect() {
+        if (connected && socket != null && !socket.isClosed()) {
+            exit();
+        }
         connected = false;
         try {
             if (socket != null && !socket.isClosed()) {
