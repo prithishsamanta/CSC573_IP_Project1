@@ -1,5 +1,4 @@
 package org.p2p.peer;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -8,26 +7,20 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
-
 public class UploadServer implements Runnable {
-
     private final int requestedPort;
     private final File rfcDirectory;
     private final String osName;
-
     private volatile int boundPort = -1;
     private volatile boolean running = true;
-
     public UploadServer(int requestedPort, File rfcDirectory, String osName) {
         this.requestedPort = requestedPort;
         this.rfcDirectory = rfcDirectory;
         this.osName = osName;
     }
-
     public int getBoundPort() {
         return boundPort;
     }
-
     public int waitForBoundPort() {
         while (boundPort == -1) {
             try {
@@ -39,14 +32,12 @@ public class UploadServer implements Runnable {
         }
         return boundPort;
     }
-
     @Override
     public void run() {
         try (ServerSocket serverSocket = new ServerSocket(requestedPort)) {
             this.boundPort = serverSocket.getLocalPort();
             System.out.println("[UploadServer] Bound to port " + boundPort +
                                ", serving RFCs from: " + rfcDirectory.getAbsolutePath());
-
             while (running) {
                 Socket clientSocket = serverSocket.accept();
                 Thread worker = new Thread(new UploadWorker(clientSocket, rfcDirectory, osName),
@@ -57,24 +48,19 @@ public class UploadServer implements Runnable {
             System.err.println("[UploadServer] Error: " + e.getMessage());
         }
     }
-
     public void shutdown() {
         running = false;
     }
 }
-
 class UploadWorker implements Runnable {
-
     private final Socket socket;
     private final File rfcDirectory;
     private final String osName;
-
     public UploadWorker(Socket socket, File rfcDirectory, String osName) {
         this.socket = socket;
         this.rfcDirectory = rfcDirectory;
         this.osName = osName;
     }
-
     @Override
     public void run() {
         System.out.println("[UploadWorker] Connection from " + socket.getRemoteSocketAddress());
@@ -82,47 +68,41 @@ class UploadWorker implements Runnable {
                     new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
              BufferedWriter out = new BufferedWriter(
                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
-
             String requestLine = in.readLine();
             if (requestLine == null || requestLine.isEmpty()) {
                 sendSimpleResponse(out, 400, "Bad Request");
                 return;
             }
-
             String[] parts = requestLine.trim().split("\\s+");
             if (parts.length != 4 || !"GET".equals(parts[0]) || !"RFC".equals(parts[1])) {
                 sendSimpleResponse(out, 400, "Bad Request");
                 return;
             }
-
             String rfcNumber = parts[2];
             String version = parts[3];
-
             if (!"P2P-CI/1.0".equals(version)) {
                 sendSimpleResponse(out, 505, "P2P-CI Version Not Supported");
                 return;
             }
-
             String line;
             while ((line = in.readLine()) != null && !line.isEmpty()) {
             }
-
-            // First try exact match: rfc<number>.txt
-            File rfcFile = new File(rfcDirectory, "rfc" + rfcNumber + ".txt");
-            if (!rfcFile.exists() || !rfcFile.isFile()) {
-                // Search through all .txt files to find one that contains "RFC <number>"
-                rfcFile = findRfcFileByNumber(rfcDirectory, rfcNumber);
-                if (rfcFile == null) {
-                    sendSimpleResponse(out, 404, "Not Found");
-                    return;
+            
+            File rfcFile = findRfcFileByNumber(rfcDirectory, rfcNumber);
+            
+            if (rfcFile == null) {
+                rfcFile = new File(rfcDirectory, "rfc" + rfcNumber + ".txt");
+                if (!rfcFile.exists() || !rfcFile.isFile()) {
+                    rfcFile = null;
                 }
             }
-
+            if (rfcFile == null) {
+                sendSimpleResponse(out, 404, "Not Found");
+                return;
+            }
             byte[] fileBytes = readAllBytes(rfcFile);
-
             String now = httpDate(new Date());
             String lastModified = httpDate(new Date(rfcFile.lastModified()));
-
             out.write("P2P-CI/1.0 200 OK\r\n");
             out.write("Date: " + now + "\r\n");
             out.write("OS: " + osName + "\r\n");
@@ -131,13 +111,10 @@ class UploadWorker implements Runnable {
             out.write("Content-Type: text/plain\r\n");
             out.write("\r\n"); 
             out.flush();
-
             OutputStream rawOut = socket.getOutputStream();
             rawOut.write(fileBytes);
             rawOut.flush();
-
             System.out.println("[UploadWorker] Successfully served RFC " + rfcNumber);
-
         } catch (IOException e) {
             System.err.println("[UploadWorker] I/O error: " + e.getMessage());
         } finally {
@@ -146,32 +123,31 @@ class UploadWorker implements Runnable {
             } catch (IOException ignore) {}
         }
     }
-
     private File findRfcFileByNumber(File rfcDirectory, String rfcNumber) {
+        
         File[] txtFiles = rfcDirectory.listFiles((dir, name) -> 
-            name.toLowerCase().endsWith(".txt"));
-        
-        if (txtFiles == null) {
-            return null;
-        }
-        
-        String searchPattern = "RFC " + rfcNumber;
-        for (File file : txtFiles) {
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
-                String firstLine = reader.readLine();
-                if (firstLine != null && firstLine.startsWith(searchPattern)) {
-                    return file;
+            name.toUpperCase().startsWith("RFC_") && name.toLowerCase().endsWith(".txt"));
+        if (txtFiles != null) {
+            for (File file : txtFiles) {
+                String filename = file.getName();
+                try {
+                    
+                    String withoutPrefix = filename.substring(4); 
+                    String withoutSuffix = withoutPrefix.substring(0, withoutPrefix.length() - 4); 
+                    int firstUnderscore = withoutSuffix.indexOf('_');
+                    if (firstUnderscore != -1) {
+                        String numStr = withoutSuffix.substring(0, firstUnderscore);
+                        if (numStr.equals(rfcNumber)) {
+                            return file;
+                        }
+                    }
+                } catch (Exception e) {
+                    
                 }
-            } catch (IOException e) {
-                // Skip files that can't be read
-                continue;
             }
         }
-        
         return null;
     }
-
     private void sendSimpleResponse(BufferedWriter out, int code, String phrase) throws IOException {
         out.write("P2P-CI/1.0 " + code + " " + phrase + "\r\n");
         out.write("OS: " + osName + "\r\n");
@@ -179,7 +155,6 @@ class UploadWorker implements Runnable {
         out.flush();
         System.out.println("[UploadWorker] Sent error " + code + " " + phrase);
     }
-
     private static byte[] readAllBytes(File file) throws IOException {
         try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
              InputStream in = new FileInputStream(file)) {
@@ -191,7 +166,6 @@ class UploadWorker implements Runnable {
             return bos.toByteArray();
         }
     }
-
     private static String httpDate(Date date) {
         SimpleDateFormat fmt =
                 new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);

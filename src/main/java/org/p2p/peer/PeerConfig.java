@@ -1,15 +1,11 @@
 package org.p2p.peer;
-
 import java.io.File;
-
 public class PeerConfig {
-
     private final String serverHost;
     private final int serverPort;
     private final int uploadPort;
     private final File rfcDirectory;
     private final String osName;
-
     public PeerConfig(String serverHost, int serverPort, int uploadPort, File rfcDirectory, String osName) {
         this.serverHost = serverHost;
         this.serverPort = serverPort;
@@ -17,35 +13,27 @@ public class PeerConfig {
         this.rfcDirectory = rfcDirectory;
         this.osName = osName;
     }
-
     public String getServerHost() {
         return serverHost;
     }
-
     public int getServerPort() {
         return serverPort;
     }
-
     public int getUploadPort() {
         return uploadPort;
     }
-
     public File getRfcDirectory() {
         return rfcDirectory;
     }
-
     public String getOsName() {
         return osName;
     }
-
-    
     public static PeerConfig fromArgs(String[] args) {
         String serverHost = "localhost";
         int serverPort = 7734;
         int uploadPort = 0;
         File rfcDir = new File("rfc");
         String osName = System.getProperty("os.name");
-
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--serverHost":
@@ -67,11 +55,9 @@ public class PeerConfig {
                     System.err.println("Unknown argument: " + args[i]);
             }
         }
-
         if (!rfcDir.exists()) {
             rfcDir.mkdirs();
         }
-
         return new PeerConfig(serverHost, serverPort, uploadPort, rfcDir, osName);
     }
 }
