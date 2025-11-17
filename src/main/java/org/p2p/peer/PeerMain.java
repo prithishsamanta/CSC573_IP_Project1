@@ -224,7 +224,7 @@ public class PeerMain {
                     title = title.substring(4);
                 }
                 System.out.println("  " + record.getHost() + " " + record.getUploadPort() + 
-                        " " + record.getRfcNumber() + "_" + title);
+                        " " + "RFC" + record.getRfcNumber() + " " + title);
             }
         }
     }
