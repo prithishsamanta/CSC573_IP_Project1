@@ -171,7 +171,7 @@ public class PeerMain {
             }
             File rfcDir = config.getRfcDirectory();
             String sanitizedTitle = title.replaceAll("[^a-zA-Z0-9\\s]", "").replaceAll("\\s+", "_");
-            String filename = sanitizedTitle + ".txt";
+            String filename = "RFC_" + rfcNumber + "_" + sanitizedTitle + ".txt";
             File rfcFile = new File(rfcDir, filename);
             try (FileWriter writer = new FileWriter(rfcFile)) {
                 writer.write("RFC " + rfcNumber + " - " + title + "\n");
