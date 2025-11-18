@@ -214,6 +214,17 @@ public class ClientHandler implements Runnable {
             registeredPort = portInteger;
             System.out.println("[Server] Peer registered: " + host + ":" + portInteger);
         }
+        final String finalHost = host;
+        final int finalPort = portInteger;
+        List<RfcRecord> existing = rfcIndex.lookup(rfcNumInteger);
+        boolean alreadyHasRfc = existing.stream()
+            .anyMatch(r -> r.getHost().equals(finalHost) && r.getUploadPort() == finalPort);
+        
+        if (alreadyHasRfc) {
+            System.out.println("[Server] RFC " + rfcNumInteger + " already registered for peer " + host + ":" + portInteger);
+            sendBadRequest(out);
+            return;
+        }
         peerRegistry.addPeer(host, portInteger);
         rfcIndex.addRfc(rfcNumInteger, titleHeaderVal, host, portInteger);
         out.write("P2P-CI/1.0 200 OK\r\n");
@@ -341,7 +352,7 @@ public class ClientHandler implements Runnable {
             sendBadRequest(out);
             return;
         }
-        List<RfcRecord> rfcRecords = rfcIndex.listAll(host, portInteger);
+        List<RfcRecord> rfcRecords = rfcIndex.listAll();
         out.write("P2P-CI/1.0 200 OK\r\n");
         out.write("\r\n");
         if (rfcRecords != null && !rfcRecords.isEmpty()) {

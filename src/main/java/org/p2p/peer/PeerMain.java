@@ -2,8 +2,6 @@ package org.p2p.peer;
 import org.p2p.common.PeerInfo;
 import org.p2p.common.RfcRecord;
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
@@ -47,11 +45,11 @@ public class PeerMain {
         }));
         System.out.println("\n=== P2P-CI Peer Ready ===");
         System.out.println("Commands:");
-        System.out.println("  ADD RFC <num>          - Register an RFC with the server (will prompt for Host, Port, Title)");
-        System.out.println("  LIST ALL               - List all RFCs in the network (will prompt for Host, Port)");
-        System.out.println("  LOOKUP RFC <num>       - Find peers with a specific RFC (will prompt for Host, Port, Title)");
-        System.out.println("  GET RFC <num>          - Download an RFC from a peer");
-        System.out.println("  EXIT                   - Exit the peer\n");
+        System.out.println("  ADD RFC <num> P2P-CI/1.0       - Register an RFC with the server (will prompt for Host, Port, Title)");
+        System.out.println("  LIST ALL P2P-CI/1.0            - List all RFCs in the network (will prompt for Host, Port)");
+        System.out.println("  LOOKUP RFC <num> P2P-CI/1.0    - Find peers with a specific RFC (will prompt for Host, Port, Title)");
+        System.out.println("  GET RFC <num>                  - Download an RFC from a peer");
+        System.out.println("  EXIT                           - Exit the peer\n");
         Scanner scanner = new Scanner(System.in);
         while (running) {
             try {
@@ -105,6 +103,34 @@ public class PeerMain {
             return "localhost";
         }
     }
+
+    private static File findRfcFileInDirectory(File directory, int rfcNumber) {
+        if (!directory.exists() || !directory.isDirectory()) {
+            return null;
+        }
+        File[] files = directory.listFiles((dir, name) -> 
+            name.toUpperCase().startsWith("RFC_") && name.toLowerCase().endsWith(".txt"));
+        
+        if (files != null) {
+            for (File file : files) {
+                try {
+                    String filename = file.getName();
+                    String withoutPrefix = filename.substring(4);
+                    String withoutSuffix = withoutPrefix.substring(0, withoutPrefix.length() - 4);
+                    int firstUnderscore = withoutSuffix.indexOf('_');
+                    if (firstUnderscore != -1) {
+                        String numStr = withoutSuffix.substring(0, firstUnderscore);
+                        int fileRfcNumber = Integer.parseInt(numStr);
+                        if (fileRfcNumber == rfcNumber) {
+                            return file;
+                        }
+                    }
+                } catch (Exception e) {
+                }
+            }
+        }
+        return null;
+    }
     private static void scanAndRegisterRfcs() {
         File rfcDir = config.getRfcDirectory();
         if (!rfcDir.exists() || !rfcDir.isDirectory()) {
@@ -137,7 +163,7 @@ public class PeerMain {
                 
                 title = title.replace('_', ' ');
                 int rfcNumber = Integer.parseInt(numStr);
-                if (p2sClient.addRfc(rfcNumber, title)) {
+                if (p2sClient.addRfc(rfcNumber, title, "P2P-CI/1.0")) {
                     successCount++;
                     System.out.println("  Registered RFC " + rfcNumber + ": " + title);
                 } else {
@@ -152,16 +178,16 @@ public class PeerMain {
         System.out.println("Successfully registered " + successCount + " out of " + rfcFiles.length + " RFCs\n");
     }
     private static void handleAdd(String[] parts, Scanner scanner) {
-        if (parts.length < 3 || !parts[1].equalsIgnoreCase("RFC")) {
-            System.out.println("Usage: ADD RFC <number>");
-            System.out.println("Example: ADD RFC 123");
+        if (parts.length < 4 || !parts[1].equalsIgnoreCase("RFC")) {
+            System.out.println("Usage: ADD RFC <number> P2P-CI/1.0");
+            System.out.println("Example: ADD RFC 123 P2P-CI/1.0");
             System.out.println("You will be prompted for Host, Port, and Title");
             return;
         }
         try {
             int rfcNumber = Integer.parseInt(parts[2]);
+            String version = parts[3];
             
-            // Prompt for Host
             System.out.print("Host: ");
             if (!scanner.hasNextLine()) {
                 return;
@@ -173,7 +199,6 @@ public class PeerMain {
                 return;
             }
             
-            // Prompt for Port
             System.out.print("Port: ");
             if (!scanner.hasNextLine()) {
                 return;
@@ -193,7 +218,6 @@ public class PeerMain {
                 return;
             }
             
-            // Prompt for Title
             System.out.print("Title: ");
             if (!scanner.hasNextLine()) {
                 return;
@@ -205,22 +229,18 @@ public class PeerMain {
                 return;
             }
             
-            // Create local RFC file
             File rfcDir = config.getRfcDirectory();
-            String sanitizedTitle = title.replaceAll("[^a-zA-Z0-9\\s]", "").replaceAll("\\s+", "_");
-            String filename = "RFC_" + rfcNumber + "_" + sanitizedTitle + ".txt";
-            File rfcFile = new File(rfcDir, filename);
-            try (FileWriter writer = new FileWriter(rfcFile)) {
-                writer.write("RFC " + rfcNumber + " - " + title + "\n");
-                writer.write("This RFC file was created via ADD command.\n");
-            } catch (IOException e) {
-                System.err.println("Error creating RFC file: " + e.getMessage());
+            File rfcFile = findRfcFileInDirectory(rfcDir, rfcNumber);
+            
+            if (rfcFile == null || !rfcFile.exists()) {
+                System.out.println("P2P-CI/1.0 404 Not Found");
+                System.err.println("Error: RFC " + rfcNumber + " not found in local directory: " + rfcDir.getAbsolutePath());
                 return;
             }
-            System.out.println("Created local file: " + rfcFile.getAbsolutePath());
             
-            // Send ADD request to server
-            if (p2sClient.addRfc(rfcNumber, title, host, port)) {
+            System.out.println("Found local file: " + rfcFile.getAbsolutePath());
+            
+            if (p2sClient.addRfc(rfcNumber, title, version)) {
                 System.out.println("Successfully registered RFC " + rfcNumber + " with server");
             } else {
                 System.err.println("Failed to register RFC " + rfcNumber + " with server");
@@ -230,15 +250,15 @@ public class PeerMain {
         }
     }
     private static void handleLookup(String[] parts, Scanner scanner) {
-        if (parts.length < 3 || !parts[1].equalsIgnoreCase("RFC")) {
-            System.out.println("Usage: LOOKUP RFC <number>");
+        if (parts.length < 4 || !parts[1].equalsIgnoreCase("RFC")) {
+            System.out.println("Usage: LOOKUP RFC <number> P2P-CI/1.0");
             System.out.println("You will be prompted for Host, Port, and Title");
             return;
         }
         try {
             int rfcNumber = Integer.parseInt(parts[2]);
+            String version = parts[3];
             
-            // Prompt for Host
             System.out.print("Host: ");
             if (!scanner.hasNextLine()) {
                 return;
@@ -250,7 +270,6 @@ public class PeerMain {
                 return;
             }
             
-            // Prompt for Port
             System.out.print("Port: ");
             if (!scanner.hasNextLine()) {
                 return;
@@ -270,7 +289,6 @@ public class PeerMain {
                 return;
             }
             
-            // Prompt for Title
             System.out.print("Title: ");
             if (!scanner.hasNextLine()) {
                 return;
@@ -282,7 +300,7 @@ public class PeerMain {
                 return;
             }
             
-            List<RfcRecord> records = p2sClient.lookupRfc(rfcNumber, host, port, title);
+            List<RfcRecord> records = p2sClient.lookupRfc(rfcNumber, version);
             if (records.isEmpty()) {
                 System.out.println("No peers found with RFC " + rfcNumber);
             } else {
@@ -297,13 +315,14 @@ public class PeerMain {
         }
     }
     private static void handleList(String[] parts, Scanner scanner) {
-        if (parts.length < 2 || !parts[1].equalsIgnoreCase("ALL")) {
-            System.out.println("Usage: LIST ALL");
+        if (parts.length < 3 || !parts[1].equalsIgnoreCase("ALL")) {
+            System.out.println("Usage: LIST ALL P2P-CI/1.0");
             System.out.println("You will be prompted for Host and Port");
             return;
         }
         
-        // Prompt for Host
+        String version = parts[2];
+        
         System.out.print("Host: ");
         if (!scanner.hasNextLine()) {
             return;
@@ -315,7 +334,6 @@ public class PeerMain {
             return;
         }
         
-        // Prompt for Port
         System.out.print("Port: ");
         if (!scanner.hasNextLine()) {
             return;
@@ -335,7 +353,7 @@ public class PeerMain {
             return;
         }
         
-        List<RfcRecord> records = p2sClient.listAll(host, port);
+        List<RfcRecord> records = p2sClient.listAll(version);
         if (records.isEmpty()) {
             System.out.println("No RFCs found in the network");
         } else {
@@ -358,7 +376,7 @@ public class PeerMain {
         try {
             int rfcNumber = Integer.parseInt(parts[2]);
             System.out.println("Looking up RFC " + rfcNumber + "...");
-            List<RfcRecord> records = p2sClient.lookupRfc(rfcNumber);
+            List<RfcRecord> records = p2sClient.lookupRfc(rfcNumber, "P2P-CI/1.0");
             if (records.isEmpty()) {
                 System.out.println("No peers found with RFC " + rfcNumber);
                 return;
@@ -371,7 +389,7 @@ public class PeerMain {
             boolean success = p2pClient.downloadRfc(peer, rfcNumber, config.getRfcDirectory(), config.getOsName(), title);
             if (success) {
                 System.out.println("Successfully downloaded RFC " + rfcNumber);
-                if (p2sClient.addRfc(rfcNumber, title)) {
+                if (p2sClient.addRfc(rfcNumber, title, "P2P-CI/1.0")) {
                     System.out.println("Registered RFC " + rfcNumber + " with server");
                 } else {
                     System.err.println("Warning: Failed to register RFC " + rfcNumber + " with server");

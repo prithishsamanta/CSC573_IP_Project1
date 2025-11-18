@@ -34,21 +34,6 @@ public class RfcIndex {
         return List.copyOf(all);
     }
     
-    public synchronized List<RfcRecord> listAll(String host, int port) {
-        List<RfcRecord> filtered = new ArrayList<>();
-        for (List<RfcRecord> l : index.values()) {
-            for (RfcRecord rec : l) {
-                if (rec.getHost().equals(host) && rec.getUploadPort() == port) {
-                    filtered.add(rec);
-                }
-            }
-        }
-        System.out.println("[RfcIndex] LIST ALL request (filtered by " + host + ":" + port + "): returning " + filtered.size() + " RFC entries");
-        for (RfcRecord rec : filtered) {
-            System.out.println("[RfcIndex]   RFC " + rec.getRfcNumber() + " at " + rec.getHost() + ":" + rec.getUploadPort());
-        }
-        return List.copyOf(filtered);
-    }
     public synchronized void removeHost(String host) {
         System.out.println("[RfcIndex] WARNING: removeHost(hostname) called - this removes ALL peers with hostname: " + host);
         System.out.println("[RfcIndex] Use removePeer(hostname, port) instead to remove specific peer");
