@@ -23,11 +23,11 @@ public class P2PClient {
                 System.err.println("[P2PClient] No response from peer");
                 return false;
             }
-            System.out.println("[P2PClient] Status: " + statusLine);
+            System.out.println(statusLine);
             int contentLength = -1;
             String headerLine;
             while ((headerLine = readLine(inputStream)) != null && !headerLine.isEmpty()) {
-                System.out.println("[P2PClient] Header: " + headerLine);
+                System.out.println(headerLine);
                 if (headerLine.toLowerCase().startsWith("content-length:")) {
                     String value = headerLine.substring("content-length:".length()).trim();
                     contentLength = Integer.parseInt(value);
@@ -35,13 +35,13 @@ public class P2PClient {
             }
             if (!statusLine.startsWith(StatusCode.OK_200)) {
                 if (statusLine.startsWith(StatusCode.NOT_FOUND_404)) {
-                    System.err.println("[P2PClient] RFC " + rfcNumber + " not found on peer");
+                    System.err.println("Error: Not Found - RFC " + rfcNumber + " not found on peer");
                 } else if (statusLine.startsWith(StatusCode.BAD_REQUEST_400)) {
-                    System.err.println("[P2PClient] Bad request");
+                    System.err.println("Error: Bad Request - Invalid request format");
                 } else if (statusLine.startsWith(StatusCode.VERSION_NOT_SUPPORTED_505)) {
-                    System.err.println("[P2PClient] Version not supported");
+                    System.err.println("Error: Version Not Supported - Peer does not support the protocol version");
                 } else {
-                    System.err.println("[P2PClient] Unexpected status: " + statusLine);
+                    System.err.println("Error: Unexpected status: " + statusLine);
                 }
                 return false;
             }
