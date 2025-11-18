@@ -9,11 +9,14 @@ public class P2PClient {
         return downloadRfc(peer, rfcNumber, targetDir, osName, null);
     }
     public boolean downloadRfc(PeerInfo peer, int rfcNumber, File targetDir, String osName, String title) {
+        return downloadRfc(peer, rfcNumber, targetDir, osName, title, peer.getHost());
+    }
+    public boolean downloadRfc(PeerInfo peer, int rfcNumber, File targetDir, String osName, String title, String requestHost) {
         try (Socket socket = new Socket(peer.getHost(), peer.getUploadPort())) {
             BufferedWriter out = new BufferedWriter(
                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
             out.write("GET RFC " + rfcNumber + " P2P-CI/1.0\r\n");
-            out.write("Host: " + peer.getHost() + "\r\n");
+            out.write("Host: " + requestHost + "\r\n");
             out.write("OS: " + osName + "\r\n");
             out.write("\r\n");
             out.flush();

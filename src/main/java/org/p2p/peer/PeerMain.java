@@ -48,7 +48,7 @@ public class PeerMain {
         System.out.println("  ADD RFC <num> P2P-CI/1.0       - Register an RFC with the server (will prompt for Host, Port, Title)");
         System.out.println("  LIST ALL P2P-CI/1.0            - List all RFCs in the network (will prompt for Host, Port)");
         System.out.println("  LOOKUP RFC <num> P2P-CI/1.0    - Find peers with a specific RFC (will prompt for Host, Port, Title)");
-        System.out.println("  GET RFC <num>                  - Download an RFC from a peer");
+        System.out.println("  GET RFC <num> P2P-CI/1.0       - Download an RFC from a peer (will prompt for Host, OS)");
         System.out.println("  EXIT                           - Exit the peer\n");
         Scanner scanner = new Scanner(System.in);
         while (running) {
@@ -74,7 +74,7 @@ public class PeerMain {
                         handleLookup(parts, scanner);
                         break;
                     case "GET":
-                        handleGet(parts);
+                        handleGet(parts, scanner);
                         break;
                     case "EXIT":
                         handleExit();
@@ -368,15 +368,40 @@ public class PeerMain {
             }
         }
     }
-    private static void handleGet(String[] parts) {
-        if (parts.length < 3 || !parts[1].equalsIgnoreCase("RFC")) {
-            System.out.println("Usage: GET RFC <number>");
+    private static void handleGet(String[] parts, Scanner scanner) {
+        if (parts.length < 4 || !parts[1].equalsIgnoreCase("RFC")) {
+            System.out.println("Usage: GET RFC <number> P2P-CI/1.0");
+            System.out.println("You will be prompted for Host and OS");
             return;
         }
         try {
             int rfcNumber = Integer.parseInt(parts[2]);
+            String version = parts[3];
+            
+            System.out.print("Host: ");
+            if (!scanner.hasNextLine()) {
+                return;
+            }
+            String host = scanner.nextLine().trim();
+            if (host.isEmpty()) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Host cannot be empty");
+                return;
+            }
+            
+            System.out.print("OS: ");
+            if (!scanner.hasNextLine()) {
+                return;
+            }
+            String os = scanner.nextLine().trim();
+            if (os.isEmpty()) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: OS cannot be empty");
+                return;
+            }
+            
             System.out.println("Looking up RFC " + rfcNumber + "...");
-            List<RfcRecord> records = p2sClient.lookupRfc(rfcNumber, "P2P-CI/1.0");
+            List<RfcRecord> records = p2sClient.lookupRfc(rfcNumber, version);
             if (records.isEmpty()) {
                 System.out.println("No peers found with RFC " + rfcNumber);
                 return;
@@ -386,7 +411,7 @@ public class PeerMain {
                     record.getHost() + ":" + record.getUploadPort() + "...");
             PeerInfo peer = new PeerInfo(record.getHost(), record.getUploadPort());
             String title = record.getTitle();
-            boolean success = p2pClient.downloadRfc(peer, rfcNumber, config.getRfcDirectory(), config.getOsName(), title);
+            boolean success = p2pClient.downloadRfc(peer, rfcNumber, config.getRfcDirectory(), os, title, host);
             if (success) {
                 System.out.println("Successfully downloaded RFC " + rfcNumber);
                 if (p2sClient.addRfc(rfcNumber, title, "P2P-CI/1.0")) {
