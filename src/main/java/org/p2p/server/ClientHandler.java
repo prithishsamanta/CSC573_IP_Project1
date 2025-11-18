@@ -341,7 +341,7 @@ public class ClientHandler implements Runnable {
             sendBadRequest(out);
             return;
         }
-        List<RfcRecord> rfcRecords = rfcIndex.listAll();
+        List<RfcRecord> rfcRecords = rfcIndex.listAll(host, portInteger);
         out.write("P2P-CI/1.0 200 OK\r\n");
         out.write("\r\n");
         if (rfcRecords != null && !rfcRecords.isEmpty()) {

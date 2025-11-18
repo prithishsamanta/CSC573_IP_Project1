@@ -47,9 +47,9 @@ public class PeerMain {
         }));
         System.out.println("\n=== P2P-CI Peer Ready ===");
         System.out.println("Commands:");
-        System.out.println("  ADD RFC <num> <title>  - Register an RFC with the server");
-        System.out.println("  LIST ALL               - List all RFCs in the network");
-        System.out.println("  LOOKUP RFC <num>       - Find peers with a specific RFC");
+        System.out.println("  ADD RFC <num>          - Register an RFC with the server (will prompt for Host, Port, Title)");
+        System.out.println("  LIST ALL               - List all RFCs in the network (will prompt for Host, Port)");
+        System.out.println("  LOOKUP RFC <num>       - Find peers with a specific RFC (will prompt for Host, Port, Title)");
         System.out.println("  GET RFC <num>          - Download an RFC from a peer");
         System.out.println("  EXIT                   - Exit the peer\n");
         Scanner scanner = new Scanner(System.in);
@@ -67,13 +67,13 @@ public class PeerMain {
                 String command = parts[0].toUpperCase();
                 switch (command) {
                     case "ADD":
-                        handleAdd(parts);
+                        handleAdd(parts, scanner);
                         break;
                     case "LIST":
-                        handleList();
+                        handleList(parts, scanner);
                         break;
                     case "LOOKUP":
-                        handleLookup(parts);
+                        handleLookup(parts, scanner);
                         break;
                     case "GET":
                         handleGet(parts);
@@ -151,24 +151,61 @@ public class PeerMain {
         }
         System.out.println("Successfully registered " + successCount + " out of " + rfcFiles.length + " RFCs\n");
     }
-    private static void handleAdd(String[] parts) {
-        if (parts.length < 4 || !parts[1].equalsIgnoreCase("RFC")) {
-            System.out.println("Usage: ADD RFC <number> <title>");
-            System.out.println("Example: ADD RFC 1234 Introduction to TCP/IP");
+    private static void handleAdd(String[] parts, Scanner scanner) {
+        if (parts.length < 3 || !parts[1].equalsIgnoreCase("RFC")) {
+            System.out.println("Usage: ADD RFC <number>");
+            System.out.println("Example: ADD RFC 123");
+            System.out.println("You will be prompted for Host, Port, and Title");
             return;
         }
         try {
             int rfcNumber = Integer.parseInt(parts[2]);
-            StringBuilder titleBuilder = new StringBuilder();
-            for (int i = 3; i < parts.length; i++) {
-                if (i > 3) titleBuilder.append(" ");
-                titleBuilder.append(parts[i]);
-            }
-            String title = titleBuilder.toString();
-            if (title.isEmpty()) {
-                System.out.println("Error: Title cannot be empty");
+            
+            // Prompt for Host
+            System.out.print("Host: ");
+            if (!scanner.hasNextLine()) {
                 return;
             }
+            String host = scanner.nextLine().trim();
+            if (host.isEmpty()) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Host cannot be empty");
+                return;
+            }
+            
+            // Prompt for Port
+            System.out.print("Port: ");
+            if (!scanner.hasNextLine()) {
+                return;
+            }
+            String portStr = scanner.nextLine().trim();
+            if (portStr.isEmpty()) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Port cannot be empty");
+                return;
+            }
+            int port;
+            try {
+                port = Integer.parseInt(portStr);
+            } catch (NumberFormatException e) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Invalid port number");
+                return;
+            }
+            
+            // Prompt for Title
+            System.out.print("Title: ");
+            if (!scanner.hasNextLine()) {
+                return;
+            }
+            String title = scanner.nextLine().trim();
+            if (title.isEmpty()) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Title cannot be empty");
+                return;
+            }
+            
+            // Create local RFC file
             File rfcDir = config.getRfcDirectory();
             String sanitizedTitle = title.replaceAll("[^a-zA-Z0-9\\s]", "").replaceAll("\\s+", "_");
             String filename = "RFC_" + rfcNumber + "_" + sanitizedTitle + ".txt";
@@ -181,8 +218,9 @@ public class PeerMain {
                 return;
             }
             System.out.println("Created local file: " + rfcFile.getAbsolutePath());
-            System.out.println("Adding RFC " + rfcNumber + " with title: " + title);
-            if (p2sClient.addRfc(rfcNumber, title)) {
+            
+            // Send ADD request to server
+            if (p2sClient.addRfc(rfcNumber, title, host, port)) {
                 System.out.println("Successfully registered RFC " + rfcNumber + " with server");
             } else {
                 System.err.println("Failed to register RFC " + rfcNumber + " with server");
@@ -191,14 +229,60 @@ public class PeerMain {
             System.out.println("Invalid RFC number: " + parts[2]);
         }
     }
-    private static void handleLookup(String[] parts) {
+    private static void handleLookup(String[] parts, Scanner scanner) {
         if (parts.length < 3 || !parts[1].equalsIgnoreCase("RFC")) {
             System.out.println("Usage: LOOKUP RFC <number>");
+            System.out.println("You will be prompted for Host, Port, and Title");
             return;
         }
         try {
             int rfcNumber = Integer.parseInt(parts[2]);
-            List<RfcRecord> records = p2sClient.lookupRfc(rfcNumber);
+            
+            // Prompt for Host
+            System.out.print("Host: ");
+            if (!scanner.hasNextLine()) {
+                return;
+            }
+            String host = scanner.nextLine().trim();
+            if (host.isEmpty()) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Host cannot be empty");
+                return;
+            }
+            
+            // Prompt for Port
+            System.out.print("Port: ");
+            if (!scanner.hasNextLine()) {
+                return;
+            }
+            String portStr = scanner.nextLine().trim();
+            if (portStr.isEmpty()) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Port cannot be empty");
+                return;
+            }
+            int port;
+            try {
+                port = Integer.parseInt(portStr);
+            } catch (NumberFormatException e) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Invalid port number");
+                return;
+            }
+            
+            // Prompt for Title
+            System.out.print("Title: ");
+            if (!scanner.hasNextLine()) {
+                return;
+            }
+            String title = scanner.nextLine().trim();
+            if (title.isEmpty()) {
+                System.out.println("P2P-CI/1.0 400 Bad Request");
+                System.err.println("Error: Title cannot be empty");
+                return;
+            }
+            
+            List<RfcRecord> records = p2sClient.lookupRfc(rfcNumber, host, port, title);
             if (records.isEmpty()) {
                 System.out.println("No peers found with RFC " + rfcNumber);
             } else {
@@ -212,8 +296,46 @@ public class PeerMain {
             System.out.println("Invalid RFC number: " + parts[2]);
         }
     }
-    private static void handleList() {
-        List<RfcRecord> records = p2sClient.listAll();
+    private static void handleList(String[] parts, Scanner scanner) {
+        if (parts.length < 2 || !parts[1].equalsIgnoreCase("ALL")) {
+            System.out.println("Usage: LIST ALL");
+            System.out.println("You will be prompted for Host and Port");
+            return;
+        }
+        
+        // Prompt for Host
+        System.out.print("Host: ");
+        if (!scanner.hasNextLine()) {
+            return;
+        }
+        String host = scanner.nextLine().trim();
+        if (host.isEmpty()) {
+            System.out.println("P2P-CI/1.0 400 Bad Request");
+            System.err.println("Error: Host cannot be empty");
+            return;
+        }
+        
+        // Prompt for Port
+        System.out.print("Port: ");
+        if (!scanner.hasNextLine()) {
+            return;
+        }
+        String portStr = scanner.nextLine().trim();
+        if (portStr.isEmpty()) {
+            System.out.println("P2P-CI/1.0 400 Bad Request");
+            System.err.println("Error: Port cannot be empty");
+            return;
+        }
+        int port;
+        try {
+            port = Integer.parseInt(portStr);
+        } catch (NumberFormatException e) {
+            System.out.println("P2P-CI/1.0 400 Bad Request");
+            System.err.println("Error: Invalid port number");
+            return;
+        }
+        
+        List<RfcRecord> records = p2sClient.listAll(host, port);
         if (records.isEmpty()) {
             System.out.println("No RFCs found in the network");
         } else {

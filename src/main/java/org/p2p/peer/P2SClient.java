@@ -39,14 +39,18 @@ public class P2SClient {
         }
     }
     public boolean addRfc(int rfcNumber, String title) {
+        return addRfc(rfcNumber, title, peerHost, uploadPort);
+    }
+    
+    public boolean addRfc(int rfcNumber, String title, String host, int port) {
         if (!connected || socket == null || socket.isClosed()) {
             System.err.println("[P2SClient] Not connected to server");
             return false;
         }
         try {
             out.write("ADD RFC " + rfcNumber + " P2P-CI/1.0\r\n");
-            out.write("Host: " + peerHost + "\r\n");
-            out.write("Port: " + uploadPort + "\r\n");
+            out.write("Host: " + host + "\r\n");
+            out.write("Port: " + port + "\r\n");
             out.write("Title: " + title + "\r\n");
             out.write("\r\n");
             out.flush();
@@ -55,16 +59,25 @@ public class P2SClient {
                 System.err.println("[P2SClient] No response from server for ADD");
                 return false;
             }
-            System.out.println("[P2SClient] ADD response: " + statusLine);
+            System.out.println(statusLine);
             String echoLine = in.readLine();
             if (echoLine != null && !echoLine.isEmpty()) {
-                System.out.println("[P2SClient] " + echoLine);
+                System.out.println(echoLine);
             }
             String blankLine = in.readLine();
             if (statusLine.startsWith("P2P-CI/1.0 200")) {
                 return true;
+            } else if (statusLine.startsWith("P2P-CI/1.0 400")) {
+                System.err.println("Error: Bad Request - Invalid request format");
+                return false;
+            } else if (statusLine.startsWith("P2P-CI/1.0 404")) {
+                System.err.println("Error: Not Found - RFC not found");
+                return false;
+            } else if (statusLine.startsWith("P2P-CI/1.0 505")) {
+                System.err.println("Error: Version Not Supported - Server does not support the protocol version");
+                return false;
             } else {
-                System.err.println("[P2SClient] ADD failed: " + statusLine);
+                System.err.println("ADD failed: " + statusLine);
                 return false;
             }
         } catch (IOException e) {
@@ -74,15 +87,19 @@ public class P2SClient {
         }
     }
     public List<RfcRecord> lookupRfc(int rfcNumber) {
+        return lookupRfc(rfcNumber, peerHost, uploadPort, "RFC " + rfcNumber);
+    }
+    
+    public List<RfcRecord> lookupRfc(int rfcNumber, String host, int port, String title) {
         if (!connected || socket == null || socket.isClosed()) {
             System.err.println("[P2SClient] Not connected to server");
             return new ArrayList<>();
         }
         try {
             out.write("LOOKUP RFC " + rfcNumber + " P2P-CI/1.0\r\n");
-            out.write("Host: " + peerHost + "\r\n");
-            out.write("Port: " + uploadPort + "\r\n");
-            out.write("Title: RFC " + rfcNumber + "\r\n");
+            out.write("Host: " + host + "\r\n");
+            out.write("Port: " + port + "\r\n");
+            out.write("Title: " + title + "\r\n");
             out.write("\r\n");
             out.flush();
             String statusLine = in.readLine();
@@ -90,36 +107,43 @@ public class P2SClient {
                 System.err.println("[P2SClient] No response from server for LOOKUP");
                 return new ArrayList<>();
             }
-            System.out.println("[P2SClient] LOOKUP response: " + statusLine);
+            System.out.println(statusLine);
             List<RfcRecord> records = new ArrayList<>();
             if (statusLine.startsWith("P2P-CI/1.0 200")) {
                 in.readLine();
                 String line;
                 while ((line = in.readLine()) != null && !line.isEmpty()) {
+                    System.out.println(line);
                     String[] parts = line.trim().split("\\s+");
                     if (parts.length >= 5 && parts[0].equals("RFC")) {
                         try {
                             int rfcNum = Integer.parseInt(parts[1]);
-                            int port = Integer.parseInt(parts[parts.length - 1]);
-                            String host = parts[parts.length - 2];
+                            int recordPort = Integer.parseInt(parts[parts.length - 1]);
+                            String recordHost = parts[parts.length - 2];
                             StringBuilder titleBuilder = new StringBuilder();
                             for (int i = 2; i < parts.length - 2; i++) {
                                 if (i > 2) titleBuilder.append(" ");
                                 titleBuilder.append(parts[i]);
                             }
-                            String title = titleBuilder.toString();
-                            records.add(new RfcRecord(rfcNum, title, host, port));
+                            String recordTitle = titleBuilder.toString();
+                            records.add(new RfcRecord(rfcNum, recordTitle, recordHost, recordPort));
                         } catch (NumberFormatException e) {
                             System.err.println("[P2SClient] Error parsing LOOKUP response line: " + line);
                         }
                     }
                 }
+            } else if (statusLine.startsWith("P2P-CI/1.0 400")) {
+                in.readLine();
+                System.err.println("Error: Bad Request - Invalid request format");
             } else if (statusLine.startsWith("P2P-CI/1.0 404")) {
                 in.readLine();
-                System.out.println("[P2SClient] RFC " + rfcNumber + " not found");
+                System.err.println("Error: Not Found - RFC " + rfcNumber + " not found");
+            } else if (statusLine.startsWith("P2P-CI/1.0 505")) {
+                in.readLine();
+                System.err.println("Error: Version Not Supported - Server does not support the protocol version");
             } else {
                 in.readLine();
-                System.err.println("[P2SClient] LOOKUP failed: " + statusLine);
+                System.err.println("LOOKUP failed: " + statusLine);
             }
             return records;
         } catch (IOException e) {
@@ -129,14 +153,18 @@ public class P2SClient {
         }
     }
     public List<RfcRecord> listAll() {
+        return listAll(peerHost, uploadPort);
+    }
+    
+    public List<RfcRecord> listAll(String host, int port) {
         if (!connected || socket == null || socket.isClosed()) {
             System.err.println("[P2SClient] Not connected to server");
             return new ArrayList<>();
         }
         try {
             out.write("LIST ALL P2P-CI/1.0\r\n");
-            out.write("Host: " + peerHost + "\r\n");
-            out.write("Port: " + uploadPort + "\r\n");
+            out.write("Host: " + host + "\r\n");
+            out.write("Port: " + port + "\r\n");
             out.write("\r\n");
             out.flush();
             String statusLine = in.readLine();
@@ -144,33 +172,43 @@ public class P2SClient {
                 System.err.println("[P2SClient] No response from server for LIST");
                 return new ArrayList<>();
             }
-            System.out.println("[P2SClient] LIST response: " + statusLine);
+            System.out.println(statusLine);
             List<RfcRecord> records = new ArrayList<>();
             if (statusLine.startsWith("P2P-CI/1.0 200")) {
                 in.readLine();
                 String line;
                 while ((line = in.readLine()) != null && !line.isEmpty()) {
+                    System.out.println(line);
                     String[] parts = line.trim().split("\\s+");
                     if (parts.length >= 5 && parts[0].equals("RFC")) {
                         try {
                             int rfcNum = Integer.parseInt(parts[1]);
-                            int port = Integer.parseInt(parts[parts.length - 1]);
-                            String host = parts[parts.length - 2];
+                            int recordPort = Integer.parseInt(parts[parts.length - 1]);
+                            String recordHost = parts[parts.length - 2];
                             StringBuilder titleBuilder = new StringBuilder();
                             for (int i = 2; i < parts.length - 2; i++) {
                                 if (i > 2) titleBuilder.append(" ");
                                 titleBuilder.append(parts[i]);
                             }
                             String title = titleBuilder.toString();
-                            records.add(new RfcRecord(rfcNum, title, host, port));
+                            records.add(new RfcRecord(rfcNum, title, recordHost, recordPort));
                         } catch (NumberFormatException e) {
                             System.err.println("[P2SClient] Error parsing LIST response line: " + line);
                         }
                     }
                 }
+            } else if (statusLine.startsWith("P2P-CI/1.0 400")) {
+                in.readLine();
+                System.err.println("Error: Bad Request - Invalid request format");
+            } else if (statusLine.startsWith("P2P-CI/1.0 404")) {
+                in.readLine();
+                System.err.println("Error: Not Found");
+            } else if (statusLine.startsWith("P2P-CI/1.0 505")) {
+                in.readLine();
+                System.err.println("Error: Version Not Supported - Server does not support the protocol version");
             } else {
                 in.readLine();
-                System.err.println("[P2SClient] LIST failed: " + statusLine);
+                System.err.println("LIST failed: " + statusLine);
             }
             return records;
         } catch (IOException e) {
@@ -195,14 +233,23 @@ public class P2SClient {
                 System.err.println("[P2SClient] No response from server for EXIT");
                 return false;
             }
-            System.out.println("[P2SClient] EXIT response: " + statusLine);
+            System.out.println(statusLine);
             in.readLine();
             if (statusLine.startsWith("P2P-CI/1.0 200")) {
                 connected = false;
                 socket.close();
                 return true;
+            } else if (statusLine.startsWith("P2P-CI/1.0 400")) {
+                System.err.println("Error: Bad Request - Invalid request format");
+                return false;
+            } else if (statusLine.startsWith("P2P-CI/1.0 404")) {
+                System.err.println("Error: Not Found");
+                return false;
+            } else if (statusLine.startsWith("P2P-CI/1.0 505")) {
+                System.err.println("Error: Version Not Supported - Server does not support the protocol version");
+                return false;
             } else {
-                System.err.println("[P2SClient] EXIT failed: " + statusLine);
+                System.err.println("EXIT failed: " + statusLine);
                 return false;
             }
         } catch (IOException e) {
