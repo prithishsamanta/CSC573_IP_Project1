@@ -228,6 +228,7 @@ public class ClientHandler implements Runnable {
         peerRegistry.addPeer(host, portInteger);
         rfcIndex.addRfc(rfcNumInteger, titleHeaderVal, host, portInteger);
         out.write("P2P-CI/1.0 200 OK\r\n");
+        out.write("\r\n");
         out.write("RFC " + rfcNumInteger + " " + titleHeaderVal + " " + host + " " + portInteger + "\r\n");
         out.write("\r\n");
         out.flush();   

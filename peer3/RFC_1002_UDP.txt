@@ -1,3 +1,0 @@
-RFC 1001 - Protocol Standard for the Internet
-This is a sample RFC file for testing purposes.
-Content of RFC 1001 goes here.
