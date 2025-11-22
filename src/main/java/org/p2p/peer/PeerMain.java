@@ -359,12 +359,8 @@ public class PeerMain {
         } else {
             System.out.println("All RFCs in network (" + records.size() + " total):");
             for (RfcRecord record : records) {
-                String title = record.getTitle();
-                if (title.startsWith("RFC ")) {
-                    title = title.substring(4);
-                }
-                System.out.println("  " + record.getHost() + " " + record.getUploadPort() + 
-                        " " + "RFC" + record.getRfcNumber() + " " + title);
+                System.out.println("  RFC " + record.getRfcNumber() + " " + record.getTitle() + 
+                        " " + record.getHost() + " " + record.getUploadPort());
             }
         }
     }
