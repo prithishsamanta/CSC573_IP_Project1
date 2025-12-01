@@ -15,6 +15,10 @@ Hybrid P2P system with centralized index server for RFC document sharing.
 - **404 Not Found** - Requested RFC is not available in the network
 - **505 P2P-CI Version Not Supported** - Protocol version in request does not match P2P-CI/1.0
 
+## Requirements
+
+- Java Development Kit (JDK) version 17 or higher
+
 ## Compilation
 
 ```bash
@@ -81,7 +85,9 @@ Title: A Proferred Official ICP
 ### GET - Download an RFC from a peer
 
 ```
-GET RFC 123
+GET RFC 123 P2P-CI/1.0
+Host: localhost
+OS: Windows 10
 ```
 
 ### EXIT - Disconnect from server
