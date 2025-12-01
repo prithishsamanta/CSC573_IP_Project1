@@ -59,13 +59,12 @@ public class P2SClient {
                 return false;
             }
             System.out.println("[P2SClient] ADD response: " + statusLine);
-            in.readLine();
+            String echoLine = in.readLine();
+            if (echoLine != null && !echoLine.isEmpty()) {
+                System.out.println("[P2SClient] " + echoLine);
+            }
+            String blankLine = in.readLine();
             if (statusLine.startsWith("P2P-CI/1.0 200")) {
-                String dataLine = in.readLine();
-                if (dataLine != null && !dataLine.isEmpty()) {
-                    System.out.println("[P2SClient] " + dataLine);
-                }
-                in.readLine();
                 return true;
             } else {
                 System.err.println("[P2SClient] ADD failed: " + statusLine);
